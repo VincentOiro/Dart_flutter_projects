@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:taskie/models/task.dart';
 
 class Homepage extends StatefulWidget
 // A StatefulWidget class is used when the part of the user interface
 // needs to change dynamically in response to user interaction or
 // other events over time
 {
+  Box? _box;
   Homepage();
   // Default constructor
 
@@ -50,8 +52,8 @@ class _HomePageState extends State<Homepage> {
     return FutureBuilder(
       future: Hive.openBox('tasks'),
       builder: (BuildContext _context, AsyncSnapshot _snapshot) {
-        if (_snapshot.connectionState==ConnectionState.done) {
-          _box=_snapshot.data;
+        if (_snapshot.hasData) {
+          _box = _snapshot.data;
           return _taskList();
         } else {
           return Center(
@@ -63,31 +65,36 @@ class _HomePageState extends State<Homepage> {
   }
 
   Widget _taskList() {
-    return ListView(
-      children: [
-        ListTile(
+    // Task _newTask = Task(content: "Go to Gym!", timestamp: DateTime.now(), done: false);
+    // _box?.add(_newTask.toMap());
+    List _tasks = _box!.values.toList();
+    return ListView.builder(
+      itemCount: _tasks.length,
+      itemBuilder: (BuildContext _context, int _index) {
+        var task = Task.fromMap(_tasks[_index]);
+        return ListTile(
           title: Text(
-            'Do Laundry',
-            style: TextStyle(decoration: TextDecoration.lineThrough),
+            task.content,
+            style: TextStyle(decoration:task.done ? TextDecoration.lineThrough :null),
           ),
-          subtitle: Text(DateTime.now().toString()),
+          subtitle: Text(task.timestamp.toString()),
           trailing: Icon(
-            Icons.check_box_outlined,
+            task.done ? Icons.check_box_outlined:Icons.check_box_outline_blank_outlined,
             color: Colors.red,
           ),
-        ),
-        ListTile(
-          title: Text(
-            'Do Laundry',
-            style: TextStyle(decoration: TextDecoration.lineThrough),
-          ),
-          subtitle: Text(DateTime.now().toString()),
-          trailing: Icon(
-            Icons.check_box_outlined,
-            color: Colors.red,
-          ),
-        )
-      ],
+          onTap: () {
+            task.done = !task.done;
+            _box!.putAt(_index, task.toMap());
+            setState(() {
+              _tasks = _box!.values.toList();
+            });
+          },
+          onLongPress:() {
+            _box!.deleteAt(_index);
+            setState((){});
+          }, 
+        );
+      },
     );
   }
 
@@ -107,7 +114,16 @@ class _HomePageState extends State<Homepage> {
           return AlertDialog(
             title: const Text('Add Task'),
             content: TextField(
-              onSubmitted: (_value) {},
+              onSubmitted: (_) {
+                if (_newTaskContent != null){
+                  var _task = Task(content: _newTaskContent! ,timestamp:DateTime.now(),done: false );
+                  _box!.add(_task.toMap());
+                  setState(() {
+                    _newTaskContent=null;
+                    Navigator.pop(context);
+                  });
+                }
+              },
               onChanged: (_value) {
                 setState(() {
                   _newTaskContent = _value;
